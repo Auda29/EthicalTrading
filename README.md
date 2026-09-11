@@ -31,6 +31,7 @@ Schlafmangel entsteht nur in Dimensionen, in denen Vanilla das Überschlafen von
 - [CONFIGURATION.md](CONFIGURATION.md): alle Einstellungen und Grenzen.
 - [TESTING.md](TESTING.md): tatsächlich ausgeführte Tests und offene Abdeckung.
 - [PLAN.md](PLAN.md): Umsetzungsplan und Architektur.
+- [PUBLISHING.md](PUBLISHING.md): GitHub-, Modrinth- und CurseForge-Veröffentlichung.
 
 ## Selbst bauen
 
@@ -49,7 +50,7 @@ Für den zusätzlichen echten Neustarttest (zwei getrennte Server-JVMs, Python 3
 python scripts/run-gametests.py --jar build/libs/ethical-trading-0.1.0+mc26.2.jar
 ```
 
-Der sechs Nächte lange Abnahmetest lässt echte Server- und Weltzeit-Ticks durchlaufen; je nach Rechner kann die Suite mehrere Minuten benötigen. Der Runner hält Gradle und Minecraft nicht gleichzeitig im Speicher. Er verwendet ausschließlich `build/run/gameTest/`, erzeugt dort eine Testwelt und verändert keine reguläre Spielwelt. Die Kotlin/Java-Entwicklungsquellen von Minecraft werden nicht mitgeliefert. Keine Veröffentlichung auf einer Modplattform erfolgt.
+Der sechs Nächte lange Abnahmetest lässt echte Server- und Weltzeit-Ticks durchlaufen; je nach Rechner kann die Suite mehrere Minuten benötigen. Der Runner hält Gradle und Minecraft nicht gleichzeitig im Speicher. Er verwendet ausschließlich `build/run/gameTest/`, erzeugt dort eine Testwelt und verändert keine reguläre Spielwelt. Die Kotlin/Java-Entwicklungsquellen von Minecraft werden nicht mitgeliefert. Plattform-Uploads erfolgen ausschließlich aus geprüften GitHub-Release-Assets; Einrichtung und Freigabestatus stehen in `PUBLISHING.md`.
 
 ## Nicht enthalten
 

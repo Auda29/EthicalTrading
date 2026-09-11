@@ -1,0 +1,28 @@
+plugins {
+    id 'base'
+    id 'com.modrinth.minotaur' version '2.9.0'
+}
+def publishingProperty = { name ->
+    def value = providers.gradleProperty(name).orNull
+    if (value == null || value.isBlank()) throw new GradleException("Missing required publishing property: ${name}")
+    value
+}
+def asset = file(publishingProperty('modrinth_upload_file'))
+def notes = file(publishingProperty('modrinth_changelog_file'))
+if (!asset.isFile() || !notes.isFile()) throw new GradleException('Verified asset and changelog must exist')
+modrinth {
+    token = System.getenv('MODRINTH_TOKEN')
+    projectId = publishingProperty('modrinth_project_id')
+    versionNumber = publishingProperty('modrinth_version_number')
+    versionName = "Ethical Trading ${publishingProperty('modrinth_version_number')} (Fabric)"
+    versionType = publishingProperty('modrinth_version_type')
+    gameVersions = ['26.2']
+    loaders = ['fabric']
+    uploadFile = asset
+    changelog = notes.getText('UTF-8')
+    autoAddDependsOn = false
+    debugMode = providers.gradleProperty('modrinth_debug').map { it.toBoolean() }.getOrElse(false)
+    dependencies { required.project 'fabric-api' }
+}
+// Publishing must never compile or reassemble the mod. Only externally verified assets are accepted.
+afterEvaluate { tasks.named('modrinth') { setDependsOn([]) } }

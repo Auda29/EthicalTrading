@@ -1,0 +1,29 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test release guards and build mod
+        run: |
+          python scripts/test_release_tools.py
+          ./gradlew --no-daemon test assemble
+      - name: Test packaged JAR, real nights and actual server restart
+        run: python scripts/run-gametests.py --jar "build/libs/$(python -c 'from scripts.release_tools import local_metadata; print(local_metadata()["jar"])')"
