@@ -159,17 +159,27 @@ public class TradingGameTests {
         level.environmentAttributes().invalidateTickCache();
         var marker=java.nio.file.Path.of("restart-fixture.txt");
         boolean read=System.getProperty("ethicalTrading.restartPhase", "write").equals("read");
+        if (read) {
+            EntityLoadGate.arm();
+            h.runAfterDelay(120, EntityLoadGate::release);
+        }
         level.setChunkForced(64,64,true); level.getChunk(64,64);
         if (read) {
             var id=java.util.UUID.fromString(java.nio.file.Files.readString(marker).trim());
-            h.runAfterDelay(40,()->{
+            // Chunk availability does not imply asynchronous entity-NBT loading is complete.
+            // Keep the existing 1600-tick deadline, but wait for identity before checking state.
+            h.startSequence().thenWaitUntil(()->
+                h.assertTrue(level.getEntityInAnyDimension(id) instanceof WelfareCarrier,
+                        "Saved villager loaded from chunk in NEW server JVM")
+            ).thenExecute(()->{
                 var loaded=level.getEntityInAnyDimension(id);
-                h.assertTrue(loaded instanceof WelfareCarrier,"Saved villager loaded from chunk in NEW server JVM");
+                h.assertTrue(EntityLoadGate.intercepted,"Real asynchronous disk-load future intercepted");
+                h.assertTrue(EntityLoadGate.ready.isDone(),"Native disk result released after the old 40-tick deadline");
                 h.assertValueEqual(((WelfareCarrier)loaded).ethicalTrading$state().snapshot(),new WelfareState.Snapshot(36000,0,0),"Restart neither resets nor increments welfare");
                 h.assertValueEqual(((net.minecraft.world.entity.npc.villager.Villager)loaded).getOffers().get(0).getUses(),3,"Restart preserves real trade uses");
-                System.out.println("[ETHICAL-PERSISTENCE] SECOND JVM read original villager " + id);
-                loaded.discard(); level.setChunkForced(64,64,false); h.succeed();
-            });
+                System.out.println("[ETHICAL-PERSISTENCE] SECOND JVM read original villager " + id + " after delayed native load");
+                loaded.discard(); level.setChunkForced(64,64,false);
+            }).thenSucceed();
             return;
         }
         var v=new net.minecraft.world.entity.npc.villager.Villager(EntityTypes.VILLAGER,level);
