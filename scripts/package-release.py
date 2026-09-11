@@ -20,10 +20,12 @@ with zipfile.ZipFile(jar) as archive:
 
 required_root = [
     '.gitignore', 'build.gradle', 'settings.gradle', 'gradle.properties', 'gradlew', 'gradlew.bat',
-    'README.md', 'CONFIGURATION.md', 'PLAN.md', 'TESTING.md', 'LICENSE', 'THIRD_PARTY.md'
+    'README.md', 'CONFIGURATION.md', 'PLAN.md', 'TESTING.md', 'LICENSE', 'THIRD_PARTY.md',
+    'PUBLISHING.md', 'RELEASE_NOTES.md', 'release.json', 'publishing/build.gradle',
+    'publishing/settings.gradle', 'publishing/gradle.properties'
 ]
 files = [root / p for p in required_root]
-for directory in ('src', 'gradle', 'scripts', 'licenses', 'evidence'):
+for directory in ('src', 'gradle', 'scripts', 'licenses', 'evidence', '.github'):
     files.extend(p for p in (root / directory).rglob('*')
                  if p.is_file() and '__pycache__' not in p.parts and p.suffix != '.pyc')
 assert all(p.is_file() and p.stat().st_size for p in files), 'Missing or empty required source/documentation'

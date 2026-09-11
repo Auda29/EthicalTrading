@@ -1,0 +1,92 @@
+name: Publish Modrinth
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub release tag
+        required: true
+        type: string
+      confirm_not_uploaded:
+        description: I checked this version is not already uploaded, including pending moderation
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: modrinth-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >-
+      vars.MODRINTH_PROJECT_ID != '' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_not_uploaded) ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.run_attempt == 1 &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_sha }}
+      - name: Confirm this triggering run created a release
+        id: creator
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          created=true
+          if [[ "$EVENT" == workflow_run ]]; then
+            created=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq 'any(.artifacts[]; .name == "release-created" and .expired == false)')
+          fi
+          printf 'created=%s\n' "$created" >> "$GITHUB_OUTPUT"
+      - name: Download exact release assets and verify SHA-256
+        if: steps.creator.outputs.created == 'true'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MANUAL_TAG: ${{ inputs.tag }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: python scripts/release_tools.py download
+      - uses: actions/setup-java@v5
+        if: steps.release.outputs.should_publish == 'true'
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Upload the verified external JAR with Minotaur, then read back
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_TYPE: ${{ steps.release.outputs.release_type }}
+          JAR: ${{ steps.release.outputs.jar }}
+        run: |
+          set -euo pipefail
+          [[ -n "$MODRINTH_TOKEN" ]] || { printf '::error::MODRINTH_TOKEN secret is missing\n'; exit 1; }
+          python scripts/modrinth_status.py preflight
+          ./gradlew --no-daemon -p publishing modrinth \
+            -Pmodrinth_project_id="$MODRINTH_PROJECT_ID" \
+            -Pmodrinth_upload_file="$GITHUB_WORKSPACE/dist/$JAR" \
+            -Pmodrinth_changelog_file="$GITHUB_WORKSPACE/dist/changelog.md" \
+            -Pmodrinth_version_number="$VERSION" \
+            -Pmodrinth_version_type="$RELEASE_TYPE"
+          python scripts/modrinth_status.py verify | tee dist/modrinth-receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.release.outputs.should_publish == 'true'
+        with:
+          name: modrinth-receipt
+          path: dist/modrinth-receipt.json
+          if-no-files-found: warn
+          retention-days: 30

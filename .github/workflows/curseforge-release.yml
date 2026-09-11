@@ -1,0 +1,89 @@
+name: Publish CurseForge
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub release tag
+        required: true
+        type: string
+      confirm_not_uploaded:
+        description: I checked this version is not already uploaded, including pending moderation
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: curseforge-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >-
+      vars.CURSEFORGE_PROJECT_ID != '' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm_not_uploaded) ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.run_attempt == 1 &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_sha }}
+      - name: Confirm this triggering run created a release
+        id: creator
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          created=true
+          if [[ "$EVENT" == workflow_run ]]; then
+            created=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" --jq 'any(.artifacts[]; .name == "release-created" and .expired == false)')
+          fi
+          printf 'created=%s\n' "$created" >> "$GITHUB_OUTPUT"
+      - name: Download exact release assets and verify SHA-256
+        if: steps.creator.outputs.created == 'true'
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MANUAL_TAG: ${{ inputs.tag }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: python scripts/release_tools.py download
+      - name: Submit the verified JAR to CurseForge
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          JAR: ${{ steps.release.outputs.jar }}
+        run: |
+          set -euo pipefail
+          [[ -n "$CURSEFORGE_API_TOKEN" ]] || { printf '::error::CURSEFORGE_API_TOKEN secret is missing\n'; exit 1; }
+          [[ "$CURSEFORGE_PROJECT_ID" =~ ^[0-9]+$ ]] || { printf '::error::Numeric project ID required\n'; exit 1; }
+          # Do not retry POST: a timeout can mean the upload was accepted.
+          status=$(curl --silent --show-error --max-time 180 \
+            --output dist/curseforge-receipt.json --write-out '%{http_code}' \
+            --header "X-Api-Token: $CURSEFORGE_API_TOKEN" \
+            --form-string "metadata=$(jq -c . dist/curseforge-metadata.json)" \
+            --form "file=@dist/$JAR;type=application/java-archive" \
+            "https://minecraft.curseforge.com/api/projects/$CURSEFORGE_PROJECT_ID/upload-file")
+          [[ "$status" =~ ^2[0-9][0-9]$ ]] || { printf '::error::CurseForge HTTP %s; inspect submission before retrying\n' "$status"; exit 1; }
+          file_id=$(jq -er '.id | select(type == "number" and . > 0)' dist/curseforge-receipt.json)
+          printf 'CurseForge accepted submission, file ID: %s\n' "$file_id" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Public availability is NOT verified by the Upload API. Check this exact file in the author dashboard; moderation may be pending. Do not re-upload.\n' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.release.outputs.should_publish == 'true'
+        with:
+          name: curseforge-submission-receipt
+          path: dist/curseforge-receipt.json
+          if-no-files-found: warn
+          retention-days: 30

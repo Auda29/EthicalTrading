@@ -13,7 +13,8 @@ parser.add_argument('--build-log', type=Path, required=True)
 parser.add_argument('--server-log', type=Path, required=True)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-jar = root / 'build/libs/ethical-trading-0.1.0+mc26.2.jar'
+properties = dict(line.split('=', 1) for line in (root/'gradle.properties').read_text().splitlines() if '=' in line)
+jar = root / 'build/libs' / ('ethical-trading-' + properties['version'] + '.jar')
 digest = hashlib.sha256(jar.read_bytes()).hexdigest()
 server_log = args.server_log.read_text()
 build_log = args.build_log.read_text()

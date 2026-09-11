@@ -1,0 +1,95 @@
+name: Release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve literal release metadata
+        id: metadata
+        run: python scripts/release_tools.py info
+      - name: Decide whether this commit needs a new release
+        id: plan
+        env:
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          if [[ "$GITHUB_REF_TYPE" != tag ]] && git show-ref --verify --quiet "refs/tags/$TAG"; then
+            printf 'create=false\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'create=true\n' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-java@v5
+        if: steps.plan.outputs.create == 'true'
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+        if: steps.plan.outputs.create == 'true'
+      - name: Build once and test this exact JAR
+        if: steps.plan.outputs.create == 'true'
+        env:
+          JAR: ${{ steps.metadata.outputs.jar }}
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          python scripts/test_release_tools.py
+          ./gradlew --no-daemon test assemble > build/release-build.log 2>&1
+          python scripts/run-gametests.py --jar "build/libs/$JAR" > build/release-server-tests.log 2>&1
+          python scripts/collect-test-evidence.py --build-log build/release-build.log --server-log build/release-server-tests.log
+          python scripts/package-release.py
+          python scripts/release_tools.py checksum
+      - name: Create an immutable GitHub prerelease/release
+        if: steps.plan.outputs.create == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+          JAR: ${{ steps.metadata.outputs.jar }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+          RELEASE_TYPE: ${{ steps.metadata.outputs.release_type }}
+        run: |
+          set -euo pipefail
+          if ! git show-ref --verify --quiet "refs/tags/$TAG"; then
+            object=$(gh api --method POST "repos/$GH_REPO/git/tags" -f tag="$TAG" -f message="Release $TAG" -f object="$GITHUB_SHA" -f type=commit --jq .sha)
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$object" >/dev/null
+          fi
+          [[ "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" == "$GITHUB_SHA" ]]
+          args=("$TAG" "dist/$JAR" "dist/$JAR.sha256" "dist/ethical-trading-$VERSION-project.zip" "dist/TESTING.md" --verify-tag --notes-file RELEASE_NOTES.md --title "Ethical Trading $VERSION ($RELEASE_TYPE)")
+          if [[ "$RELEASE_TYPE" != release ]]; then args+=(--prerelease); fi
+          # No --clobber: existing releases/assets are never replaced.
+          gh release create "${args[@]}"
+          mkdir -p build/read-back
+          gh release download "$TAG" --pattern "$JAR" --pattern "$JAR.sha256" --dir build/read-back
+          (cd build/read-back && sha256sum --check "$JAR.sha256")
+          printf '%s\n' "$TAG" > build/release-created.txt
+      - name: Mark this run as the creator, not a no-op rerun
+        if: steps.plan.outputs.create == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-created
+          path: build/release-created.txt
+          retention-days: 7
+      - name: Retain logs if release verification fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-failure-logs
+          path: build/release-*.log
+          retention-days: 7
