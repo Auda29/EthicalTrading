@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.ethicaltrading.core.WelfareStateTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-09-11T15:26:41.844Z" hostname="4a86f79aee72" time="0.032">
+  <properties/>
+  <testcase name="fragmentedSleepDoesNotCountAsOneSufficientPhase()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.009"/>
+  <testcase name="persistenceRetainsDebtStressAndPartialSleepWithoutOfflineCatchUp()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.004"/>
+  <testcase name="penaltiesUseStrongerNotProductAndLowVolumeTradesSurviveUntilStrike()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.002"/>
+  <testcase name="adequateRealSleepRecoversButAssignedBedAloneDoesNot()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.001"/>
+  <testcase name="stressHasGraceAccumulatesAcrossScaresAndRecoversInCalm()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.0"/>
+  <testcase name="skippedNightNeverGivesAwakeVillagerSleepCredit()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.002"/>
+  <testcase name="tinySleepBeforeSkipIsNotEnoughAndDaytimeDoesNotCreateDebt()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.002"/>
+  <testcase name="oneNightIsFreeTwoRestrictSixStrike()" classname="dev.ethicaltrading.core.WelfareStateTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

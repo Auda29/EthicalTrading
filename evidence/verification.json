@@ -1,0 +1,84 @@
+{
+  "verified_at_utc": "2026-09-11T15:26:42.572071+00:00",
+  "jar": "ethical-trading-0.1.0+mc26.2.jar",
+  "jar_sha256": "60fb08de7c14d120a24cf7d7b11749c65563a817a272a1460d1f569ab3845052",
+  "build_successful": true,
+  "unit_tests": 10,
+  "unit_failures": 0,
+  "unit_suites": [
+    {
+      "name": "dev.ethicaltrading.core.ConfigTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-09-11T15:26:41.573Z",
+      "hostname": "4a86f79aee72",
+      "time": "0.267"
+    },
+    {
+      "name": "dev.ethicaltrading.core.WelfareStateTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "timestamp": "2026-09-11T15:26:41.844Z",
+      "hostname": "4a86f79aee72",
+      "time": "0.032"
+    }
+  ],
+  "own_minecraft_server_tests": 9,
+  "fabric_baseline_tests_per_process": 1,
+  "server_processes": 2,
+  "passed_per_process": [
+    10,
+    10
+  ],
+  "real_night_measurements_per_process": [
+    {
+      "night": 1,
+      "clock": 24010,
+      "game_ticks": 24000,
+      "debt": 12010,
+      "capacity": 10
+    },
+    {
+      "night": 2,
+      "clock": 48010,
+      "game_ticks": 48000,
+      "debt": 24020,
+      "capacity": 8
+    },
+    {
+      "night": 3,
+      "clock": 72010,
+      "game_ticks": 72000,
+      "debt": 36030,
+      "capacity": 6
+    },
+    {
+      "night": 4,
+      "clock": 96010,
+      "game_ticks": 96000,
+      "debt": 48040,
+      "capacity": 4
+    },
+    {
+      "night": 5,
+      "clock": 120010,
+      "game_ticks": 120000,
+      "debt": 60050,
+      "capacity": 2
+    },
+    {
+      "night": 6,
+      "clock": 144010,
+      "game_ticks": 144000,
+      "debt": 72000,
+      "capacity": 0
+    }
+  ],
+  "restart_same_uuid_verified": "b0c8f54c-ff69-4700-a89a-1afc101bb759",
+  "manual_graphical_client_tests_performed": false,
+  "large_hall_benchmark_performed": false
+}

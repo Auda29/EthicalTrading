@@ -1,0 +1,36 @@
+plugins { id 'net.fabricmc.fabric-loom' version "${loom_version}" }
+repositories { mavenCentral() }
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    testImplementation platform('org.junit:junit-bom:5.14.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+loom { serverOnlyMinecraftJar() }
+fabricApi { configureTests {
+    createSourceSet = true
+    modId = 'ethical-trading-test'
+    enableGameTests = true
+    enableClientGameTests = false
+    eula = true
+} }
+tasks.matching { it.name == 'runGameTest' }.configureEach {
+    maxHeapSize = '512m'
+    jvmArgs '-XX:ActiveProcessorCount=2', '-XX:MaxMetaspaceSize=256m'
+    doFirst {
+        if (project.hasProperty('exportGameTestCommand')) {
+            file('build/gametest-launch.json').text = groovy.json.JsonOutput.toJson([
+                command: [javaLauncher.get().executablePath.asFile.absolutePath, *allJvmArgs, '-cp', classpath.asPath, mainClass.get(), *args],
+                cwd: file("build/run/gameTest").absolutePath])
+            throw new StopExecutionException('Launch exported for low-memory standalone runner')
+        }
+    }
+}
+tasks.named('jar') { from('LICENSE') }
+java { withSourcesJar(); sourceCompatibility = JavaVersion.VERSION_25; targetCompatibility = JavaVersion.VERSION_25 }
+tasks.withType(JavaCompile).configureEach { options.release = 25 }
+test { useJUnitPlatform(); maxHeapSize = '256m'; testLogging { events 'passed', 'failed', 'skipped' } }
+processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand 'version': project.version } }
+tasks.withType(AbstractArchiveTask).configureEach { preserveFileTimestamps = false; reproducibleFileOrder = true }

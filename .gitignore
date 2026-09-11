@@ -1,0 +1,15 @@
+.gradle/
+build/
+run/
+.idea/
+*.iml
+dist/
+__pycache__/
+inspection/
+world/
+logs/
+config/
+mods/
+eula.txt
+server.properties
+restart-fixture.txt

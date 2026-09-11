@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.ethicaltrading.test.mixin","compatibilityLevel":"JAVA_25","mixins":["MenuCapture","TestOrigin"],"injectors":{"defaultRequire":1}}
