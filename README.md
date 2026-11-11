@@ -1,5 +1,7 @@
 # Ethical Trading — Fabric 26.2
 
+[Website (DE)](https://auda29.github.io/EthicalTrading/) · [Website (EN)](https://auda29.github.io/EthicalTrading/en.html)
+
 Serverseitige Minecraft-Java-Mod, Version **0.1.0+mc26.2**. Villager handeln abhängig von tatsächlichem Schlaf und anhaltender Panik. Keine Mindestfläche, kein Gebäudecheck, kein Futterzwang: Ein eigenes erreichbares Bett pro Villager genügt. Arbeitsplatz und die normalen Vanilla-Voraussetzungen für Nachfüllen bleiben nötig.
 
 ## Installation
